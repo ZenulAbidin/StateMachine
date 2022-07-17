@@ -65,11 +65,11 @@ void Player::EndPause()
 
 STATE_DEFINE(Player, Empty, NoEventData)
 {
-	static BOOL CD_DetectedToggle = FALSE;
-	CD_DetectedToggle = CD_DetectedToggle == FALSE ? TRUE : FALSE; 
+	static bool CD_DetectedToggle = false;
+	CD_DetectedToggle = CD_DetectedToggle == false ? true : false; 
 
 	cout << "Player::ST_Empty" << endl;
-	if (CD_DetectedToggle == TRUE)
+	if (CD_DetectedToggle == true)
 		InternalEvent(ST_STOPPED);
 }
 

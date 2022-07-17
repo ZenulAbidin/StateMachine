@@ -5,7 +5,7 @@ using namespace std;
 
 CentrifugeTest::CentrifugeTest() :
 	SelfTest(ST_MAX_STATES),
-	m_pollActive(FALSE),
+	m_pollActive(false),
 	m_speed(0)
 {
 }
@@ -60,9 +60,9 @@ GUARD_DEFINE(CentrifugeTest, GuardStartTest, NoEventData)
 {
 	cout << "CentrifugeTest::GD_GuardStartTest" << endl;
 	if (m_speed == 0)
-		return TRUE;	// Centrifuge stopped. OK to start test.
+		return true;	// Centrifuge stopped. OK to start test.
 	else
-		return FALSE;	// Centrifuge spinning. Can't start test.
+		return false;	// Centrifuge spinning. Can't start test.
 }
 
 // Start accelerating the centrifuge.

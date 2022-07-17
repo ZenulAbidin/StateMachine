@@ -4,20 +4,35 @@
 //----------------------------------------------------------------------------
 // StateMachine
 //----------------------------------------------------------------------------
-StateMachine::StateMachine(BYTE maxStates, BYTE initialState) :
+StateMachine::StateMachine(uint8_t maxStates, uint8_t initialState) :
 	MAX_STATES(maxStates),
 	m_currentState(initialState),
-	m_newState(FALSE),
-	m_eventGenerated(FALSE),
+	m_newState(false),
+	m_eventGenerated(false),
 	m_pEventData(NULL)
 {
 	ASSERT_TRUE(MAX_STATES < EVENT_IGNORED);
+#ifdef WIN32
+	bool success = InitializeCriticalSectionAndSpinCount(&_criticalSection, 0x00000400);
+	ASSERT_TRUE(success != 0);
+#else
+        int success = pthread_mutex_init(&_criticalSection, NULL);
+        ASSERT_TRUE(success == 0);
+#endif
 }  
+
+StateMachine::~StateMachine() {
+#ifdef WIN32
+	DeleteCriticalSection(&_criticalSection);
+#else
+        pthread_mutex_destroy(&_criticalSection);
+#endif
+}
 
 //----------------------------------------------------------------------------
 // ExternalEvent
 //----------------------------------------------------------------------------
-void StateMachine::ExternalEvent(BYTE newState, const EventData* pData)
+void StateMachine::ExternalEvent(uint8_t newState, const EventData* pData)
 {
 	// If we are supposed to ignore this event
 	if (newState == EVENT_IGNORED)
@@ -30,7 +45,12 @@ void StateMachine::ExternalEvent(BYTE newState, const EventData* pData)
 	}
 	else
 	{
-		// TODO - capture software lock here for thread-safety if necessary
+	// capture software lock here for thread-safety if necessary
+#ifdef WIN32
+	        EnterCriticalSection(&_criticalSection); 
+#else
+                pthread_mutex_lock(&_criticalSection);
+#endif
 
 #ifdef EXTERNAL_EVENT_NO_HEAP_DATA
 		EventData data;
@@ -44,20 +64,25 @@ void StateMachine::ExternalEvent(BYTE newState, const EventData* pData)
 		// when all state machine events are processed.
 		StateEngine();
 
-		// TODO - release software lock here 
+		// release software lock here 
+#ifdef WIN32
+	        LeaveCriticalSection(&_criticalSection);
+#else
+                pthread_mutex_unlock(&_criticalSection);
+#endif
 	}
 }
 
 //----------------------------------------------------------------------------
 // InternalEvent
 //----------------------------------------------------------------------------
-void StateMachine::InternalEvent(BYTE newState, const EventData* pData)
+void StateMachine::InternalEvent(uint8_t newState, const EventData* pData)
 {
 	if (pData == NULL)
 		pData = new NoEventData();
 
 	m_pEventData = pData;
-	m_eventGenerated = TRUE;
+	m_eventGenerated = true;
 	m_newState = newState;
 }
 
@@ -85,7 +110,7 @@ void StateMachine::StateEngine(void)
 void StateMachine::StateEngine(const StateMapRow* const pStateMap)
 {
 #if EXTERNAL_EVENT_NO_HEAP_DATA
-	BOOL externalEvent = TRUE;
+	bool externalEvent = true;
 #endif
 	const EventData* pDataTemp = NULL;	
 
@@ -105,7 +130,7 @@ void StateMachine::StateEngine(const StateMapRow* const pStateMap)
 		m_pEventData = NULL;
 
 		// Event used up, reset the flag
-		m_eventGenerated = FALSE;
+		m_eventGenerated = false;
 
 		// Switch to the new current state
 		SetCurrentState(m_newState);
@@ -122,7 +147,7 @@ void StateMachine::StateEngine(const StateMapRow* const pStateMap)
 				delete pDataTemp;
 			pDataTemp = NULL;
 		}
-		externalEvent = FALSE;
+		externalEvent = false;
 #else
 		if (pDataTemp)
 		{
@@ -139,7 +164,7 @@ void StateMachine::StateEngine(const StateMapRow* const pStateMap)
 void StateMachine::StateEngine(const StateMapRowEx* const pStateMapEx)
 {
 #if EXTERNAL_EVENT_NO_HEAP_DATA
-	BOOL externalEvent = TRUE;
+	bool externalEvent = true;
 #endif
 	const EventData* pDataTemp = NULL;
 
@@ -162,15 +187,15 @@ void StateMachine::StateEngine(const StateMapRowEx* const pStateMapEx)
 		m_pEventData = NULL;
 
 		// Event used up, reset the flag
-		m_eventGenerated = FALSE;
+		m_eventGenerated = false;
 
 		// Execute the guard condition
-		BOOL guardResult = TRUE;
+		bool guardResult = true;
 		if (guard != NULL)
 			guardResult = guard->InvokeGuardCondition(this, pDataTemp);
 
 		// If the guard condition succeeds
-		if (guardResult == TRUE)
+		if (guardResult == true)
 		{
 			// Transitioning to a new state?
 			if (m_newState != m_currentState)
@@ -184,7 +209,7 @@ void StateMachine::StateEngine(const StateMapRowEx* const pStateMapEx)
 					entry->InvokeEntryAction(this, pDataTemp);
 
 				// Ensure exit/entry actions didn't call InternalEvent by accident 
-				ASSERT_TRUE(m_eventGenerated == FALSE);
+				ASSERT_TRUE(m_eventGenerated == false);
 			}
 
 			// Switch to the new current state
@@ -203,7 +228,7 @@ void StateMachine::StateEngine(const StateMapRowEx* const pStateMapEx)
 				delete pDataTemp;
 			pDataTemp = NULL;
 		}
-		externalEvent = FALSE;
+		externalEvent = false;
 #else
 		if (pDataTemp)
 		{

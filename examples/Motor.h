@@ -6,7 +6,7 @@
 class MotorData : public EventData
 {
 public:
-	INT speed;
+	int speed;
 };
 
 class Motor : public StateMachine
@@ -19,7 +19,7 @@ public:
 	void Halt();
 
 private:
-	INT m_currentSpeed; 
+	int m_currentSpeed; 
 
 	// State enumeration order must match the order of state method entries
 	// in the state map.

@@ -12,14 +12,14 @@ MotorNM::MotorNM() :
 // set motor speed external event
 void MotorNM::SetSpeed(MotorNMData* data)
 {
-	static const BYTE TRANSITIONS[] = {
+	static const uint8_t TRANSITIONS[] = {
 		ST_START,						// ST_IDLE
 		CANNOT_HAPPEN,					// ST_STOP
 		ST_CHANGE_SPEED,				// ST_START
 		ST_CHANGE_SPEED,				// ST_CHANGE_SPEED
 	};
     ExternalEvent(TRANSITIONS[GetCurrentState()], data); 
-	C_ASSERT((sizeof(TRANSITIONS)/sizeof(BYTE)) == ST_MAX_STATES); 
+	C_ASSERT((sizeof(TRANSITIONS)/sizeof(uint8_t)) == ST_MAX_STATES); 
 
 	// Alternate transition map using macro support
 	//BEGIN_TRANSITION_MAP			              			// - Current State -
@@ -33,14 +33,14 @@ void MotorNM::SetSpeed(MotorNMData* data)
 // halt motor external event
 void MotorNM::Halt()
 {
-	static const BYTE TRANSITIONS[] = {
+	static const uint8_t TRANSITIONS[] = {
 		EVENT_IGNORED,					// ST_IDLE
 		CANNOT_HAPPEN,					// ST_STOP
 		ST_STOP,						// ST_START
 		ST_STOP,						// ST_CHANGE_SPEED
 	};
     ExternalEvent(TRANSITIONS[GetCurrentState()], NULL); 
-	C_ASSERT((sizeof(TRANSITIONS)/sizeof(BYTE)) == ST_MAX_STATES); 
+	C_ASSERT((sizeof(TRANSITIONS)/sizeof(uint8_t)) == ST_MAX_STATES); 
 
 	// Alternate transition map using macro support
 	//BEGIN_TRANSITION_MAP			              			// - Current State -

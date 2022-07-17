@@ -3,7 +3,7 @@
 
 using namespace std;
 
-SelfTest::SelfTest(INT maxStates) :
+SelfTest::SelfTest(int maxStates) :
 	StateMachine(maxStates)
 {
 }

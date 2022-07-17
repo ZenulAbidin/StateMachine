@@ -1,8 +1,14 @@
+/*
+ * malloc/free replacement using a Fixed Block Allocator (public domain)
+ * Ported to UNIX/Linux by Ali Sherief.
+ * Originally published on CodeProject at: http://www.codeproject.com/Articles/1084801/Replace-malloc-free-with-a-Fast-Fixed-Block-Memory ("Replace malloc/free with a Fast Fixed Block Memory Allocator")
+ *
+*/
 #ifndef _XALLOCATOR_H
 #define _XALLOCATOR_H
 
 #include <stddef.h>
-#include "DataTypes.h"
+#include <stdint.h>
 
 // See http://www.codeproject.com/Articles/1084801/Replace-malloc-free-with-a-Fast-Fixed-Block-Memory
 
@@ -26,7 +32,7 @@ public:
 	XallocInitDestroy();
 	~XallocInitDestroy();
 private:
-	static INT refCount;
+	static int refCount;
 };
 static XallocInitDestroy xallocInitDestroy;
 #endif	// AUTOMATIC_XALLOCATOR_INIT_DESTROY

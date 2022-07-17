@@ -9,7 +9,7 @@
 class SelfTest : public StateMachine
 {
 public:
-	SelfTest(INT maxStates);
+	SelfTest(int maxStates);
 
 	virtual void Start() = 0;
 	void Cancel();

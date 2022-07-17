@@ -14,14 +14,14 @@ public:
 	virtual void Start();
 	void Poll();
 
-	BOOL IsPollActive() { return m_pollActive; }
+	bool IsPollActive() { return m_pollActive; }
 
 private:
-	BOOL m_pollActive;
-	INT m_speed; 
+	bool m_pollActive;
+	int m_speed; 
 
-	void StartPoll() { m_pollActive = TRUE; }
-	void StopPoll() { m_pollActive = FALSE; }
+	void StartPoll() { m_pollActive = true; }
+	void StopPoll() { m_pollActive = false; }
 
 	// State enumeration order must match the order of state method entries
 	// in the state map.

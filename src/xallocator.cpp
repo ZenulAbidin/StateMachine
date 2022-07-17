@@ -1,7 +1,7 @@
 #include "xallocator.h"
 #include "Allocator.h"
-#include "Fault.h"
 #include <iostream>
+#include <string.h>
 
 using namespace std;
 
@@ -10,11 +10,14 @@ using namespace std;
 #endif
 
 #if WIN32
-// @TODO Create a lock for non-Windows platforms when using an operating system
+#include <synchapi.h>
 static CRITICAL_SECTION _criticalSection; 
+#else
+#include <pthread.h>
+static pthread_mutex_t _criticalSection;
 #endif 
 
-static BOOL _xallocInitialized = FALSE;
+static bool _xallocInitialized = false;
 
 // Define STATIC_POOLS to switch from heap blocks mode to static pools mode
 //#define STATIC_POOLS 
@@ -60,7 +63,7 @@ static BOOL _xallocInitialized = FALSE;
 // and xalloc_destroy() before main exits. In all other situations
 // XallocInitDestroy must be used to call xalloc_init() and xalloc_destroy().
 #ifdef AUTOMATIC_XALLOCATOR_INIT_DESTROY
-INT XallocInitDestroy::refCount = 0;
+int XallocInitDestroy::refCount = 0;
 XallocInitDestroy::XallocInitDestroy() 
 { 
 	// Track how many static instances of XallocInitDestroy are created
@@ -92,41 +95,50 @@ T nexthigher(T k)
 /// Create the xallocator lock. Call only one time at startup. 
 static void lock_init()
 {
-#if WIN32
-	BOOL success = InitializeCriticalSectionAndSpinCount(&_criticalSection, 0x00000400);
+#ifdef WIN32
+	bool success = InitializeCriticalSectionAndSpinCount(&_criticalSection, 0x00000400);
 	ASSERT_TRUE(success != 0);
+#else
+        int success = pthread_mutex_init(&_criticalSection, NULL);
+        ASSERT_TRUE(success == 0);
 #endif
-	_xallocInitialized = TRUE;
+	_xallocInitialized = true;
 }
 
 /// Destroy the xallocator lock.
 static void lock_destroy()
 {
-#if WIN32
+#ifdef WIN32
 	DeleteCriticalSection(&_criticalSection);
+#else
+        pthread_mutex_destroy(&_criticalSection);
 #endif
-	_xallocInitialized = FALSE;
+	_xallocInitialized = false;
 }
 
 /// Lock the shared resource. 
 static inline void lock_get()
 {
-	if (_xallocInitialized == FALSE)
+	if (_xallocInitialized == false)
 		return;
 
-#if WIN32
+#ifdef WIN32
 	EnterCriticalSection(&_criticalSection); 
+#else
+        pthread_mutex_lock(&_criticalSection);
 #endif
 }
 
 /// Unlock the shared resource. 
 static inline void lock_release()
 {
-	if (_xallocInitialized == FALSE)
+	if (_xallocInitialized == false)
 		return;
 
-#if WIN32
+#ifdef WIN32
 	LeaveCriticalSection(&_criticalSection);
+#else
+        pthread_mutex_unlock(&_criticalSection);
 #endif
 }
 
@@ -181,7 +193,7 @@ static inline void *get_block_ptr(void* block)
 /// if no allocator exists. 
 static inline Allocator* find_allocator(size_t size)
 {
-	for (INT i=0; i<MAX_ALLOCATORS; i++)
+	for (int i=0; i<MAX_ALLOCATORS; i++)
 	{
 		if (_allocators[i] == 0)
 			break;
@@ -197,7 +209,7 @@ static inline Allocator* find_allocator(size_t size)
 /// @param[in] allocator - An allocator instance
 static inline void insert_allocator(Allocator* allocator)
 {
-	for (INT i=0; i<MAX_ALLOCATORS; i++)
+	for (int i=0; i<MAX_ALLOCATORS; i++)
 	{
 		if (_allocators[i] == 0)
 		{
@@ -255,13 +267,13 @@ extern "C" void xalloc_destroy()
 	lock_get();
 
 #ifdef STATIC_POOLS
-	for (INT i=0; i<MAX_ALLOCATORS; i++)
+	for (int i=0; i<MAX_ALLOCATORS; i++)
 	{
 		_allocators[i]->~Allocator();
 		_allocators[i] = 0;
 	}
 #else
-	for (INT i=0; i<MAX_ALLOCATORS; i++)
+	for (int i=0; i<MAX_ALLOCATORS; i++)
 	{
 		if (_allocators[i] == 0)
 			break;
@@ -397,7 +409,7 @@ extern "C" void xalloc_stats()
 {
 	lock_get();
 
-	for (INT i=0; i<MAX_ALLOCATORS; i++)
+	for (int i=0; i<MAX_ALLOCATORS; i++)
 	{
 		if (_allocators[i] == 0)
 			break;

@@ -1,10 +1,50 @@
-#ifndef _STATE_MACHINE_H
-#define _STATE_MACHINE_H
+/*
+ * Thread-safe State Machine (public domain)
+ * Ported to UNIX/Linux by Ali Sherief.
+ * Originally published on CodeProject at: https://www.codeproject.com/Articles/1087619/State-Machine-Design-in-Cplusplus ("State Machine Design in C++")
+ *
+ * Based on original design published in C\C++ Users Journal (Dr. Dobb's) at: http://www.drdobbs.com/cpp/state-machine-design-in-c/184401236 ("State Machine Design in C++")
+*/
+#ifndef STATE_MACHINE_STATE_MACHINE_H
+#define STATE_MACHINE_STATE_MACHINE_H
 
-#include "DataTypes.h"
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
-#include <typeinfo>
-#include "Fault.h"
+
+#include <string>
+
+using std::string;
+
+class StateMachineFault {
+public:
+  StateMachineFault() {}
+  StateMachineFault(const char *msg_) { msg = string(msg_); }
+  StateMachineFault(const string &msg_) { msg = msg_; }
+  string what() const { return msg; }
+
+private:
+  string msg;
+};
+
+
+// Used for compile-time checking for array sizes. On Windows VC++, you get 
+// an "error C2118: negative subscript" error.
+#ifndef C_ASSERT
+#define C_ASSERT(expr)  {char uname[(expr)?1:-1];uname[0]=0;}
+#endif
+
+#define ASSERT() \
+	throw StateMachineFault("State machine fault");
+#define ASSERT_TRUE(condition) \
+	do {if (!(condition)) throw StateMachineFault( \
+            "State machine fault");} while (0)
+
+#ifdef WIN32
+#include <synchapi.h>
+#else
+#include <pthread.h>
+#endif
 
 // If EXTERNAL_EVENT_NO_HEAP_DATA is defined it changes how a client sends data to the
 // state machine. When undefined, the ExternalEvent() pData argument must be created on the heap. 
@@ -82,17 +122,17 @@ public:
 	/// @param[in] sm - A state machine instance. 
 	/// @param[in] data - The event data. 
 	/// @return Returns TRUE if no guard condition or the guard condition evaluates to TRUE.
-	virtual BOOL InvokeGuardCondition(StateMachine* sm, const EventData* data) const = 0;
+	virtual bool InvokeGuardCondition(StateMachine* sm, const EventData* data) const = 0;
 };
 
 /// @brief GuardCondition takes three template arguments: A state machine class,
 /// a state function event data type (derived from EventData) and a state machine 
 /// member function pointer. 
-template <class SM, class Data, BOOL (SM::*Func)(const Data*)>
+template <class SM, class Data, bool (SM::*Func)(const Data*)>
 class GuardCondition : public GuardBase
 {
 public:
-	virtual BOOL InvokeGuardCondition(StateMachine* sm, const EventData* data) const 
+	virtual bool InvokeGuardCondition(StateMachine* sm, const EventData* data) const 
 	{
 		SM* derivedSM = static_cast<SM*>(sm);		
 		const Data* derivedData = dynamic_cast<const Data*>(data);
@@ -180,42 +220,49 @@ public:
 
 	///	Constructor.
 	///	@param[in] maxStates - the maximum number of state machine states.
-	StateMachine(BYTE maxStates, BYTE initialState = 0);
+	StateMachine(uint8_t maxStates, uint8_t initialState = 0);
 
-	virtual ~StateMachine() {}
+	virtual ~StateMachine();
 
 	/// Gets the current state machine state.
 	/// @return Current state machine state.
-	BYTE GetCurrentState() { return m_currentState; }
+	uint8_t GetCurrentState() { return m_currentState; }
 
 	/// Gets the maximum number of state machine states.
 	/// @return The maximum state machine states. 
-	BYTE GetMaxStates() { return MAX_STATES; }
+	uint8_t GetMaxStates() { return MAX_STATES; }
 	
 protected:
+        /// The lock for the state machine.
+#if WIN32
+	CRITICAL_SECTION _criticalSection; 
+#else
+	pthread_mutex_t _criticalSection;
+#endif 
+
 	/// External state machine event.
 	/// @param[in] newState - the state machine state to transition to.
 	/// @param[in] pData - the event data sent to the state.
-	void ExternalEvent(BYTE newState, const EventData* pData = NULL);
+	void ExternalEvent(uint8_t newState, const EventData* pData = NULL);
 
 	/// Internal state machine event. These events are generated while executing
 	///	within a state machine state.
 	/// @param[in] newState - the state machine state to transition to.
 	/// @param[in] pData - the event data sent to the state.
-	void InternalEvent(BYTE newState, const EventData* pData = NULL);
+	void InternalEvent(uint8_t newState, const EventData* pData = NULL);
 	
 private:
 	/// The maximum number of state machine states.
-	const BYTE MAX_STATES;
+	const uint8_t MAX_STATES;
 
 	/// The current state machine state.
-	BYTE m_currentState;
+        uint8_t m_currentState;
 
 	/// The new state the state machine has yet to transition to. 
-	BYTE m_newState;
+	uint8_t m_newState;
 
 	/// Set to TRUE when an event is generated.
-	BOOL m_eventGenerated;
+	bool m_eventGenerated;
 
 	/// The state event data pointer.
 	const EventData* m_pEventData;
@@ -238,7 +285,7 @@ private:
 
 	/// Set a new current state.
 	/// @param[in] newState - the new state.
-	void SetCurrentState(BYTE newState) { m_currentState = newState; }
+	void SetCurrentState(uint8_t newState) { m_currentState = newState; }
 
 	/// State machine engine that executes the external event and, optionally, all 
 	/// internal events generated during state execution.
@@ -255,11 +302,11 @@ private:
 	void stateMachine::ST_##stateName(const eventData* data)
 		
 #define GUARD_DECLARE(stateMachine, guardName, eventData) \
-	BOOL GD_##guardName(const eventData*); \
+	bool GD_##guardName(const eventData*); \
 	GuardCondition<stateMachine, eventData, &stateMachine::GD_##guardName> guardName;
 	
 #define GUARD_DEFINE(stateMachine, guardName, eventData) \
-	BOOL stateMachine::GD_##guardName(const eventData* data)
+	bool stateMachine::GD_##guardName(const eventData* data)
 
 #define ENTRY_DECLARE(stateMachine, entryName, eventData) \
 	void EN_##entryName(const eventData*); \
@@ -276,7 +323,7 @@ private:
 	void stateMachine::EX_##exitName(void)
 
 #define BEGIN_TRANSITION_MAP \
-    static const BYTE TRANSITIONS[] = {\
+    static const uint8_t TRANSITIONS[] = {\
 
 #define TRANSITION_MAP_ENTRY(entry)\
     entry,
@@ -285,7 +332,7 @@ private:
     };\
 	ASSERT_TRUE(GetCurrentState() < ST_MAX_STATES); \
     ExternalEvent(TRANSITIONS[GetCurrentState()], data); \
-	C_ASSERT((sizeof(TRANSITIONS)/sizeof(BYTE)) == ST_MAX_STATES); 
+	C_ASSERT((sizeof(TRANSITIONS)/sizeof(uint8_t)) == ST_MAX_STATES); 
 
 #define PARENT_TRANSITION(state) \
 	if (GetCurrentState() >= ST_MAX_STATES && \
