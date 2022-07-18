@@ -34,14 +34,17 @@ StateMachine::~StateMachine() {
 //----------------------------------------------------------------------------
 void StateMachine::ExternalEvent(uint8_t newState, const EventData* pData)
 {
-	// If we are supposed to ignore this event
-	if (newState == EVENT_IGNORED)
+	// If we are supposed to ignore this event,
+	// or the event is illegal
+	if (newState == EVENT_IGNORED || newState == CANNOT_HAPPEN)
 	{
 #ifndef EXTERNAL_EVENT_NO_HEAP_DATA
 		// Just delete the event data, if any
 		if (pData != NULL)
 			delete pData;
 #endif
+		// and fault if the event is illegal.
+		ASSERT_TRUE(newState != CANNOT_HAPPEN);
 	}
 	else
 	{
