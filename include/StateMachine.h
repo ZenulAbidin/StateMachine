@@ -322,6 +322,8 @@ private:
 #define EXIT_DEFINE(stateMachine, exitName) \
 	void stateMachine::EX_##exitName(void)
 
+
+#ifndef USE_NEW_TRANSITIONS
 #define BEGIN_TRANSITION_MAP \
     static const uint8_t TRANSITIONS[] = {\
 
@@ -333,6 +335,25 @@ private:
 	ASSERT_TRUE(GetCurrentState() < ST_MAX_STATES); \
     ExternalEvent(TRANSITIONS[GetCurrentState()], data); \
 	C_ASSERT((sizeof(TRANSITIONS)/sizeof(uint8_t)) == ST_MAX_STATES); 
+#else
+
+#define BEGIN_TRANSITION_MAP(event) \
+    const uint8_t event##_TRANSITIONS[ST_MAX_STATES] = {\
+
+#define TRANSITION_MAP_ENTRY(entry)\
+    entry,
+
+#define END_TRANSITION_MAP \
+    };
+
+#define TRANSITION_BODY(event, data) \
+	ASSERT_TRUE(GetCurrentState() < ST_MAX_STATES); \
+    ExternalEvent(event##_TRANSITIONS[GetCurrentState()], data); \
+	C_ASSERT((sizeof(event##_TRANSITIONS)/sizeof(uint8_t)) == ST_MAX_STATES); 
+#define TRANSITION_CHECK_BODY(event) \
+	return event##_TRANSITIONS[GetCurrentState()] != CANNOT_HAPPEN;
+
+#endif // USE_NEW_TRANSITIONS
 
 #define PARENT_TRANSITION(state) \
 	if (GetCurrentState() >= ST_MAX_STATES && \

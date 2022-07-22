@@ -10,7 +10,7 @@
 # automake instead. It handles these kind of things
 # better than a lone makefile ever could.
 CC = g++
-CXXFLAGS = -fPIC -O3 
+CXXFLAGS = -fPIC -g
 INCLUDE_FILES = -I./include
 LDLIBS = -lpthread
 LDFLAGS = -shared
@@ -18,9 +18,10 @@ LDFLAGS = -shared
 SRC_DIR = src
 EXAMPLES_DIR = examples
 EXAMPLES_BIN = StateMachineExamples
+EXAMPLESNEW_BIN = StateMachineExamplesNew
 EXAMPLES_DEPLIBS = -L. libStateMachine.so
 LIB_FILES = libStateMachine.so
-BIN_FILES = $(EXAMPLES_BIN) 
+BIN_FILES = $(EXAMPLES_BIN)  $(EXAMPLESNEW_BIN)
 
 
 SRC_FILES := $(wildcard $(SRC_DIR)/*.cpp)
@@ -41,7 +42,10 @@ $(EXAMPLES_DIR)/%.o: $(EXAMPLES_DIR)/%.cpp
 ${LIB_FILES} : ${OBJ_FILES}
 	${CC} -o $@ $(INCLUDE_FILES) ${LDFLAGS} $^ ${LDLIBS}
 
-${EXAMPLES_BIN} : ${OBJ_EXAMPLES_FILES}
+${EXAMPLES_BIN} : examples/Main.o examples/Motor.o examples/MotorNM.o examples/Player.o examples/SelfTest.o examples/CentrifugeTest.o
+	${CC} -o $@ $(INCLUDE_FILES) ${BINFLAGS} $^ ${LDLIBS} ${EXAMPLES_DEPLIBS}
+
+${EXAMPLESNEW_BIN} : examples/MainNew.o examples/MotorNew.o
 	${CC} -o $@ $(INCLUDE_FILES) ${BINFLAGS} $^ ${LDLIBS} ${EXAMPLES_DEPLIBS}
 
 .PHONY: clean
